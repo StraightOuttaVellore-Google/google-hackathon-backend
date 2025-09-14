@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, AnyUrl, field_validator
 from typing import Optional
-from data_structures import wellness_data
+from wellness_data import WellnessData
 from study_data import StudyData
 
 

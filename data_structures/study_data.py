@@ -92,9 +92,30 @@ class EisenhowerMatrix(BaseModel):
     list_of_tasks: List[Task]
 
 
+class StudyEmoji(Enum):
+    RELAXED = "😌"  # almost no study, chilled day
+    BALANCED = "🙂"  # light productive day, some balance
+    FOCUSED = "📚"  # good study flow, but healthy
+    INTENSE = "🔥"  # long study sessions, high energy
+    OVERWHELMED = "😵"  # studied a lot, but mentally drained
+    BURNT_OUT = "💀"  # extreme overload, unhealthy
+
+
+# We do not store transcript and convo audio as we value the privacy of the user
+class DailyData(BaseModel):
+    day: int = Field(..., description="The day of journalling")
+    month: int = Field(..., description="The month of journalling")
+    year: int = Field(..., description="The year of journalling")
+    emoji: StudyEmoji = Field(..., description="The emoji assigned for the day")
+    summary: str = Field(..., description="Summary of the conversation with the agent")
+
+
 class StudyData(BaseModel):
     pomodoro_timer: PomodoroTimer = Field(..., description="The pomodoro timer class")
     sound: Sound = Field(..., description="The ambient sound and colored noises class")
     eisenhower_matrix: EisenhowerMatrix = Field(
         ..., description="The eisenhower matrix for task list"
+    )
+    stress_jounral_data: List[DailyData] = Field(
+        ..., description="List of the voice agent convo data over the days"
     )
