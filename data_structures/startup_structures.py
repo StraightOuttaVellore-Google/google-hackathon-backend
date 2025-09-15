@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, AnyUrl, field_validator
+from enum import Enum
 from typing import Optional
 from wellness_data import WellnessData
 from study_data import StudyData
