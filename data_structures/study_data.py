@@ -62,7 +62,7 @@ class TaskQuadrant(Enum):
     LULI = "low_urgency_low_importanct"
 
 
-class TaskStatus(BaseModel):
+class TaskStatus(Enum):
     CREATED = "created"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
