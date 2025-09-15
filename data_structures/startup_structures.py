@@ -18,6 +18,11 @@ class AvatarUrl(BaseModel):
         return v
 
 
+class Theme(Enum):
+    DARK = "dark"
+    LIGHT = "light"
+
+
 class UserProfile(BaseModel):
     user_id: str = Field(
         ..., description="Used to uniquely identify a user. Unique Property."
@@ -30,6 +35,9 @@ class UserProfile(BaseModel):
         default=None, description="URL used to retrieve users Display Image"
     )
     total_fished: int = Field(..., description="No of fishes earned by the user")
+    default_theme: Theme = Field(
+        default=Theme.DARK, description="The system theme of the app"
+    )
 
 
 class StartupData(BaseModel):
