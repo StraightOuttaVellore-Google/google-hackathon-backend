@@ -1,8 +1,8 @@
 from pydantic import BaseModel, Field, AnyUrl, field_validator
 from enum import Enum
 from typing import Optional
-from wellness_data import WellnessData
-from study_data import StudyData
+from data_structures.wellness_data import WellnessData
+from data_structures.study_data import StudyData
 
 
 class AvatarUrl(BaseModel):
@@ -26,19 +26,29 @@ class Theme(Enum):
 
 class UserProfile(BaseModel):
     user_id: str = Field(
-        ..., description="Used to uniquely identify a user. Unique Property."
+        ...,
+        description="Used to uniquely identify a user. Unique Property.",
+        alias="userId",
     )
     username: str = Field(..., description="Username of the user. Unique Property")
     display_name: str = Field(
-        ..., description="Name that will be displayed on the webpage"
+        ...,
+        description="Name that will be displayed on the webpage",
+        alias="displayName",
     )
-    avatar_url: Optional[AvatarUrl] = Field(
-        default=None, description="URL used to retrieve users Display Image"
+    avatar_url: Optional[str] = Field(
+        default=None,
+        description="URL used to retrieve users Display Image",
+        alias="avatarUrl",
     )
-    total_fished: int = Field(..., description="No of fishes earned by the user")
+    total_fished: int = Field(
+        ..., description="No of fishes earned by the user", alias="totalFishes"
+    )
     default_theme: Theme = Field(
         default=Theme.DARK, description="The system theme of the app"
     )
+
+    model_config = {"populate_by_name": True}
 
 
 class StartupData(BaseModel):
