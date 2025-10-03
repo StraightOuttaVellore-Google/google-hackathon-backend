@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlmodel import Session, SQLModel, create_engine, Column, TIMESTAMP, text
+from sqlmodel import Session, SQLModel, create_engine
 from typing import Annotated
 import os
 from dotenv import load_dotenv

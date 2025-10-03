@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Response, status
 from model import JounralSummaries
 from db import SessionDep
 from sqlmodel import select
@@ -20,9 +20,9 @@ async def add_voice_agent_journal(data_received: JounralSummaries, session: Sess
         session.commit()
         return Response(status_code=status.HTTP_200_OK)
     except Exception as e:
-        return HTTPException(
+        return Response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            content=f"Internal Server Error:\n{e}",
         )
 
 
@@ -30,7 +30,9 @@ async def add_voice_agent_journal(data_received: JounralSummaries, session: Sess
 async def get_voice_agent_journal(user_name: str, session: SessionDep):
     try:
         jounral_summaries = session.exec(
-            select(JounralSummaries).where(JounralSummaries.user_name == user_name)
+            select(JounralSummaries)
+            .where(JounralSummaries.user_name == user_name)
+            .order_by(JounralSummaries.created_at)
         ).all()
 
         if not jounral_summaries:
@@ -38,8 +40,7 @@ async def get_voice_agent_journal(user_name: str, session: SessionDep):
         else:
             return jounral_summaries
     except Exception as e:
-        print(f"Exception: {e}")
-        return HTTPException(
+        return Response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            content=f"Internal Server Error:\n{e}",
         )

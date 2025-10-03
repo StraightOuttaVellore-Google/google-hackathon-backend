@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Response, status
-from model import JounralSummaries
-from db import SessionDep, create_db_and_tables
-import voice_agent_journal
+from fastapi import FastAPI
+from db import create_db_and_tables
+from voice_agent_journal import router as va_router
+from priority_matrix import router as pm_router
 
 
 @asynccontextmanager
@@ -20,4 +20,5 @@ async def root():
     return {"message": "Hello World"}
 
 
-app.include_router(voice_agent_journal.router)
+app.include_router(va_router)
+app.include_router(pm_router)
