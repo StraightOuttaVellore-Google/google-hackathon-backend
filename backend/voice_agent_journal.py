@@ -8,10 +8,13 @@ router = APIRouter()
 
 
 @router.post("/voice_agent_journal")
-async def add_voice_agent_journal(new_row: JounralSummaries, session: SessionDep):
+async def add_voice_agent_journal(data_received: JounralSummaries, session: SessionDep):
     try:
         new_row = JounralSummaries(
-            id=new_row.id, user_name=new_row.user_name, summary=new_row.summary
+            id=data_received.id,
+            user_name=data_received.user_name,
+            study_mode=data_received.study_mode,
+            data=data_received.data,
         )
         session.add(new_row)
         session.commit()
