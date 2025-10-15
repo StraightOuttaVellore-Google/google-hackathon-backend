@@ -119,3 +119,150 @@ class TaskData(BaseModel):
 
 class DeleteTaskData(BaseModel):
     id: str
+
+
+# Chat Models
+class ChannelType(str, Enum):
+    TEXT = "text"
+    VOICE = "voice"
+
+
+class ServerRole(str, Enum):
+    ADMIN = "admin"
+    MODERATOR = "moderator"
+    MEMBER = "member"
+
+
+class ChatServer(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    name: str = Field(index=True, unique=True)
+    icon: str  # emoji or icon identifier
+    created_by: uuid.UUID = Field(foreign_key="users.user_id")
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class ChatChannel(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    server_id: uuid.UUID = Field(foreign_key="chatserver.id", index=True)
+    name: str
+    type: ChannelType
+    position: int = Field(default=0)
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class ChatMessage(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    server_id: uuid.UUID = Field(foreign_key="chatserver.id", index=True)
+    channel_id: uuid.UUID = Field(foreign_key="chatchannel.id", index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    text: str
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class ServerMembership(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    server_id: uuid.UUID = Field(foreign_key="chatserver.id", index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    role: ServerRole = Field(default=ServerRole.MEMBER)
+    joined_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+# Pydantic models for Chat API
+class CreateServerData(BaseModel):
+    name: str
+    icon: str
+
+
+class CreateChannelData(BaseModel):
+    name: str
+    type: ChannelType
+
+
+class SendMessageData(BaseModel):
+    text: str
+
+
+class AddMemberData(BaseModel):
+    user_id: str
+    role: Optional[ServerRole] = ServerRole.MEMBER
+
+
+class ServerResponse(BaseModel):
+    id: str
+    name: str
+    icon: str
+    created_by: str
+    created_at: datetime
+
+
+class ChannelResponse(BaseModel):
+    id: str
+    server_id: str
+    name: str
+    type: ChannelType
+    position: int
+
+
+class MessageResponse(BaseModel):
+    id: str
+    user: str  # username
+    text: str
+    timestamp: str
+    server_id: str
+    channel_id: str

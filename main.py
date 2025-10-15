@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from db import create_db_and_tables
 from routers.voice_agent_journal import router as va_router
 from routers.priority_matrix import router as pm_router
 from routers.auth import router as auth_router
+from routers.chat import router as chat_router
 from datetime import datetime, timezone
 
 
@@ -15,6 +17,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -34,3 +45,4 @@ async def get_health():
 app.include_router(va_router)
 app.include_router(pm_router)
 app.include_router(auth_router)
+app.include_router(chat_router)
