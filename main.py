@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from db import create_db_and_tables
-from voice_agent_journal import router as va_router
-from priority_matrix import router as pm_router
+from routers.voice_agent_journal import router as va_router
+from routers.priority_matrix import router as pm_router
 
 
 @asynccontextmanager
