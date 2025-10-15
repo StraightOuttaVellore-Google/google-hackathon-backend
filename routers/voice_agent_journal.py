@@ -1,18 +1,20 @@
 from fastapi import APIRouter, Response, status
-from model import JounralSummaries
+from model import JournalSummaries, JournalSummariesInput
 from db import SessionDep
 from sqlmodel import select
 
+from utils import TokenDep
 
-router = APIRouter()
+router = APIRouter(tags=["VoiceAgent"])
 
 
 @router.post("/voice_agent_journal")
-async def add_voice_agent_journal(data_received: JounralSummaries, session: SessionDep):
+async def add_voice_agent_journal(
+    data_received: JournalSummariesInput, token_data: TokenDep, session: SessionDep
+):
     try:
-        new_row = JounralSummaries(
-            id=data_received.id,
-            user_name=data_received.user_name,
+        new_row = JournalSummaries(
+            user_id=token_data.user_id,
             study_mode=data_received.study_mode,
             data=data_received.data,
         )
@@ -27,12 +29,12 @@ async def add_voice_agent_journal(data_received: JounralSummaries, session: Sess
 
 
 @router.get("/voice_agent_journal")
-async def get_voice_agent_journal(user_name: str, session: SessionDep):
+async def get_voice_agent_journal(token_data: TokenDep, session: SessionDep):
     try:
         jounral_summaries = session.exec(
-            select(JounralSummaries)
-            .where(JounralSummaries.user_name == user_name)
-            .order_by(JounralSummaries.created_at)
+            select(JournalSummaries)
+            .where(JournalSummaries.user_id == token_data.user_id)
+            .order_by(JournalSummaries.created_at)
         ).all()
 
         if not jounral_summaries:

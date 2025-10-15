@@ -1,21 +1,21 @@
 import select
 from typing import Optional
+import uuid
 from fastapi import APIRouter, Response, status
 from datetime import date
 from sqlmodel import select
-
 from db import SessionDep
-from model import PriorityMatrix
+from model import PriorityMatrix, TaskData, DeleteTaskData
+from utils import TokenDep
 
-router = APIRouter()
+router = APIRouter(tags=["PriorityMatrix"])
 
 
-@router.post("/priority_matrix")
-async def add_task(session: SessionDep, data: PriorityMatrix):
+@router.post("/priority_matrix", status_code=status.HTTP_200_OK)
+async def add_task(session: SessionDep, token_data: TokenDep, data: TaskData):
     try:
         new_row = PriorityMatrix(
-            id=data.id,
-            user_name=data.user_name,
+            user_id=token_data.user_id,
             quadrant=data.quadrant,
             title=data.title,
             description=data.description,
@@ -32,13 +32,13 @@ async def add_task(session: SessionDep, data: PriorityMatrix):
 
 @router.get("/priority_matrix")
 async def get_priority_matrix(
-    session: SessionDep, user_name: Optional[str] = None, day: Optional[str] = None
+    session: SessionDep, token_data: TokenDep, day: Optional[str] = None
 ):
     """Getting information of the users priority matrix
 
     Args:
         session (SessionDep)
-        user_name (Optional[str], optional): User Name of the user. Defaults to None.
+        username (Optional[str], optional): User Name of the user. Defaults to None.
         date (Optional[str], optional): The date of the priority matrix. Accepts date in the format "yyyy-mm-dd" Defaults to None.
     """
     try:
@@ -47,12 +47,14 @@ async def get_priority_matrix(
             day = date(int(day[0]), int(day[1]), int(day[2]))
             results = session.exec(
                 select(PriorityMatrix)
-                .where(PriorityMatrix.user_name == user_name)
+                .where(PriorityMatrix.user_id == token_data.user_id)
                 .where(PriorityMatrix.created_at == day)
             ).all()
         else:
             results = session.exec(
-                select(PriorityMatrix).where(PriorityMatrix.user_name == user_name)
+                select(PriorityMatrix).where(
+                    PriorityMatrix.user_id == token_data.user_id
+                )
             ).all()
         if results == None:
             return Response(status_code=status.HTTP_404_NOT_FOUND)
@@ -65,10 +67,10 @@ async def get_priority_matrix(
 
 
 @router.delete("/priority_matrix")
-async def delete_task(session: SessionDep, id: str):
+async def delete_task(session: SessionDep, task_data: DeleteTaskData):
     try:
         result = session.exec(
-            select(PriorityMatrix).where(PriorityMatrix.id == id)
+            select(PriorityMatrix).where(PriorityMatrix.id == uuid.UUID(task_data.id))
         ).one()
         if result is not None:
             session.delete(result)
@@ -82,10 +84,14 @@ async def delete_task(session: SessionDep, id: str):
 
 
 @router.patch("/priority_matrix")
-async def update_task(session: SessionDep, changed_data: PriorityMatrix):
+async def update_task(
+    session: SessionDep, token_data: TokenDep, changed_data: TaskData
+):
     try:
         result = session.exec(
-            select(PriorityMatrix).where(PriorityMatrix.id == changed_data.id)
+            select(PriorityMatrix).where(
+                PriorityMatrix.id == uuid.UUID(changed_data.id)
+            )
         ).one()
         if result is None:
             return Response(status_code=status.HTTP_404_NOT_FOUND)
