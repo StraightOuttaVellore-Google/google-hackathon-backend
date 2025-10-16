@@ -87,6 +87,12 @@ class Quadrant(str, Enum):
     LILU = "low_imp_low_urg"
 
 
+class TaskStatus(str, Enum):
+    TODO = "To Do"
+    IN_PROGRESS = "In Progress"
+    COMPLETED = "Completed"
+
+
 class PriorityMatrix(SQLModel, table=True):
     id: Optional[uuid.UUID] = Field(
         sa_column=Column(
@@ -101,6 +107,7 @@ class PriorityMatrix(SQLModel, table=True):
     quadrant: Quadrant
     title: str = Field(index=True)
     description: str
+    status: TaskStatus = Field(default=TaskStatus.TODO)
     created_at: Optional[date] = Field(
         sa_column=Column(
             DATE,
@@ -115,6 +122,7 @@ class TaskData(BaseModel):
     quadrant: Quadrant
     title: str
     description: str
+    status: Optional[TaskStatus] = TaskStatus.TODO
 
 
 class DeleteTaskData(BaseModel):
@@ -266,3 +274,157 @@ class MessageResponse(BaseModel):
     timestamp: str
     server_id: str
     channel_id: str
+
+
+# Pomodoro Settings
+class PomodoroSettings(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id", unique=True)
+    work_duration: int = Field(default=25)  # minutes
+    short_break: int = Field(default=5)  # minutes
+    long_break: int = Field(default=15)  # minutes
+    sessions_before_long_break: int = Field(default=4)
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class PomodoroSettingsInput(BaseModel):
+    work_duration: Optional[int] = None
+    short_break: Optional[int] = None
+    long_break: Optional[int] = None
+    sessions_before_long_break: Optional[int] = None
+
+
+# Sound Preferences
+class SoundPreferences(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id", unique=True)
+    selected_sound: str = Field(default="none")
+    volume: float = Field(default=0.5)
+    is_playing: bool = Field(default=False)
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class SoundPreferencesInput(BaseModel):
+    selected_sound: Optional[str] = None
+    volume: Optional[float] = None
+    is_playing: Optional[bool] = None
+
+
+# Daily Journal Data
+class DailyJournalData(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    journal_date: date = Field(sa_column=Column(DATE, nullable=False, index=True))
+    study_mode: bool = Field(default=True)
+    mood: Optional[str] = None
+    stress_level: Optional[int] = None  # 1-10 scale
+    notes: Optional[str] = None
+    data: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class DailyJournalDataInput(BaseModel):
+    journal_date: str  # ISO date format YYYY-MM-DD
+    study_mode: bool
+    mood: Optional[str] = None
+    stress_level: Optional[int] = None
+    notes: Optional[str] = None
+    data: Optional[Dict] = None
+
+
+# Moodboard Data
+class MoodboardData(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id", unique=True)
+    study_mode: bool = Field(default=True)
+    data: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class MoodboardDataInput(BaseModel):
+    study_mode: bool
+    data: Optional[Dict] = None

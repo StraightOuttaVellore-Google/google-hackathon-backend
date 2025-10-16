@@ -45,7 +45,7 @@ def verify_access_token(token: Annotated[str, Depends(oauth2_scheme)]):
         if payload is None:
             raise CREDENTIALS_EXCEPTION
         token_data = TokenData(
-            user_id=payload["user_id"],
+            user_id=payload["user_id"],  # This should be a string UUID
             username=payload["username"],
             type_of_customer=payload["type_of_customer"],
         )
