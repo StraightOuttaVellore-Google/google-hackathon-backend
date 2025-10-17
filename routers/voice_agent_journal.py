@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Response, status
+from typing import List
+from fastapi import APIRouter, HTTPException, Response, status
 from model import JournalSummaries, JournalSummariesInput
 from db import SessionDep
 from sqlmodel import select
@@ -8,7 +9,7 @@ from utils import TokenDep
 router = APIRouter(tags=["VoiceAgent"])
 
 
-@router.post("/voice_agent_journal")
+@router.post("/voice_agent_journal", response_model=JournalSummaries)
 async def add_voice_agent_journal(
     data_received: JournalSummariesInput, token_data: TokenDep, session: SessionDep
 ):
@@ -20,15 +21,16 @@ async def add_voice_agent_journal(
         )
         session.add(new_row)
         session.commit()
-        return Response(status_code=status.HTTP_200_OK)
+        session.refresh(new_row)
+        return new_row
     except Exception as e:
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Internal Server Error:\n{e}",
         )
 
 
-@router.get("/voice_agent_journal")
+@router.get("/voice_agent_journal", response_model=List[JournalSummaries])
 async def get_voice_agent_journal(token_data: TokenDep, session: SessionDep):
     try:
         jounral_summaries = session.exec(
