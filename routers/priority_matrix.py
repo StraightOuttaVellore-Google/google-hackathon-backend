@@ -74,7 +74,7 @@ async def get_priority_matrix(
         )
 
 
-@router.delete("/priority_matrix")
+@router.delete("/priority_matrix", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
     session: SessionDep, token_data: TokenDep, task_data: DeleteTaskData
 ):
@@ -95,7 +95,7 @@ async def delete_task(
         if result is not None:
             session.delete(result)
             session.commit()
-        return Response(status_code=status.HTTP_200_OK)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

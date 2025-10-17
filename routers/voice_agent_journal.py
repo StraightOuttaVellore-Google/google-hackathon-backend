@@ -24,6 +24,7 @@ async def add_voice_agent_journal(
         session.refresh(new_row)
         return new_row
     except Exception as e:
+        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error:\n{e}",
