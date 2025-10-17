@@ -428,3 +428,49 @@ class MoodboardData(SQLModel, table=True):
 class MoodboardDataInput(BaseModel):
     study_mode: bool
     data: Optional[Dict] = None
+
+
+# Sound Usage Statistics
+class SoundUsageLog(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    sound_type: str  # "ambient" or "noise"
+    sound_name: str  # "white", "forest", "rain", etc.
+    started_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    ended_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=True,
+        )
+    )
+    duration_seconds: Optional[int] = None  # calculated field
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class SoundUsageLogInput(BaseModel):
+    sound_type: str
+    sound_name: str
+
+
+class EndSoundSessionInput(BaseModel):
+    pass

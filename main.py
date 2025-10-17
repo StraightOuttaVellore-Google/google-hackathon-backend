@@ -9,6 +9,7 @@ from routers.auth import router as auth_router
 from routers.chat import router as chat_router
 from routers.daily_journal import router as daily_journal_router
 from routers.moodboard import router as moodboard_router
+from routers.stats import router as stats_router
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -59,3 +60,4 @@ app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(daily_journal_router)
 app.include_router(moodboard_router)
+app.include_router(stats_router)
