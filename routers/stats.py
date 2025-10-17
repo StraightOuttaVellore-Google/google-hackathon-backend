@@ -96,6 +96,9 @@ async def end_sound_session(session_id: str, token_data: TokenDep, session: Sess
         )
 
 
+# @TODO: We have to remove this from frontend because this is a useless
+# function which was used as a placeholder earlier but now everything
+# is accessible from their own endpoints
 @router.get("/stats/monthly-overview/{year}/{month}")
 async def get_monthly_overview(
     year: int, month: int, token_data: TokenDep, session: SessionDep
