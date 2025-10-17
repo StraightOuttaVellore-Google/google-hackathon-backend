@@ -1,7 +1,7 @@
 import select
 from typing import Optional
 import uuid
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 from datetime import date
 from sqlmodel import select
 from db import SessionDep
@@ -11,12 +11,14 @@ from utils import TokenDep
 router = APIRouter(tags=["PriorityMatrix"])
 
 
-@router.post("/priority_matrix", status_code=status.HTTP_200_OK)
+@router.post(
+    "/priority_matrix",
+    status_code=status.HTTP_201_CREATED,
+    response_model=PriorityMatrix,
+)
 async def add_task(session: SessionDep, token_data: TokenDep, data: TaskData):
     try:
-        # Use the provided ID from frontend instead of letting database generate it
         new_row = PriorityMatrix(
-            id=uuid.UUID(data.id),  # Convert string UUID to UUID object
             user_id=uuid.UUID(token_data.user_id),  # Convert string UUID to UUID object
             quadrant=data.quadrant,
             title=data.title,
@@ -26,13 +28,13 @@ async def add_task(session: SessionDep, token_data: TokenDep, data: TaskData):
         session.add(new_row)
         session.commit()
         session.refresh(new_row)  # Refresh to get any server-generated fields
-        return Response(status_code=status.HTTP_200_OK)
+        return new_row
     except Exception as e:
         # Log the actual error for debugging
         print(f"Database error in add_task: {e}")
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Internal Server Error:\n{e}",
         )
 
 
@@ -66,9 +68,9 @@ async def get_priority_matrix(
             return Response(status_code=status.HTTP_404_NOT_FOUND)
         return results
     except Exception as e:
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Internal Server Error:\n{e}",
         )
 
 
@@ -80,9 +82,9 @@ async def delete_task(
         try:
             task_uuid = uuid.UUID(task_data.id)
         except ValueError:
-            return Response(
+            raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content="Invalid task ID format",
+                detail="Invalid task ID format",
             )
 
         result = session.exec(
@@ -95,25 +97,18 @@ async def delete_task(
             session.commit()
         return Response(status_code=status.HTTP_200_OK)
     except Exception as e:
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Internal Server Error:\n{e}",
         )
 
 
-@router.patch("/priority_matrix")
+@router.patch("/priority_matrix", response_model=PriorityMatrix)
 async def update_task(
     session: SessionDep, token_data: TokenDep, changed_data: TaskData
 ):
     try:
-        try:
-            task_uuid = uuid.UUID(changed_data.id)
-        except ValueError:
-            return Response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content="Invalid task ID format",
-            )
-
+        task_uuid = uuid.UUID(changed_data.id)
         result = session.exec(
             select(PriorityMatrix)
             .where(PriorityMatrix.id == task_uuid)
@@ -127,7 +122,8 @@ async def update_task(
         result.status = changed_data.status if changed_data.status else result.status
         session.add(result)
         session.commit()
-        return Response(status_code=status.HTTP_200_OK)
+        session.refresh(result)
+        return result
     except Exception as e:
         return Response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

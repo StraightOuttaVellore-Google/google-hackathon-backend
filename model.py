@@ -105,7 +105,7 @@ class PriorityMatrix(SQLModel, table=True):
     )
     user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
     quadrant: Quadrant
-    title: str = Field(index=True)
+    title: str
     description: str
     status: TaskStatus = Field(default=TaskStatus.TODO)
     created_at: Optional[date] = Field(
@@ -118,7 +118,7 @@ class PriorityMatrix(SQLModel, table=True):
 
 
 class TaskData(BaseModel):
-    id: str
+    id: Optional[str] = None
     quadrant: Quadrant
     title: str
     description: str

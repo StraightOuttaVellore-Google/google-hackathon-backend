@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from db import create_db_and_tables
 from routers.voice_agent_journal import router as va_router
 from routers.priority_matrix import router as pm_router
@@ -11,6 +12,9 @@ from routers.sound import router as sound_router
 from routers.daily_journal import router as daily_journal_router
 from routers.moodboard import router as moodboard_router
 from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @asynccontextmanager
