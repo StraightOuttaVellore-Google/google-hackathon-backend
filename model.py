@@ -474,3 +474,45 @@ class SoundUsageLogInput(BaseModel):
 
 class EndSoundSessionInput(BaseModel):
     pass
+
+
+# Pomodoro Usage Statistics
+class PomodoroSession(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    started_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    ended_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=True,
+        )
+    )
+    duration_seconds: Optional[
+        int
+    ] = None  # Total duration including all pomodoro cycles
+    cycles_completed: int = Field(default=0)  # Number of pomodoro cycles completed
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class PomodoroSessionInput(BaseModel):
+    pass
