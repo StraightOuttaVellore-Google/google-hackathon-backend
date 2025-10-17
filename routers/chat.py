@@ -114,6 +114,17 @@ async def create_server(data: CreateServerData, token: TokenDep, session: Sessio
     """Create a new server"""
     user_id = uuid.UUID(token.user_id)
 
+    # Check if server name already exists
+    existing_server = session.exec(
+        select(ChatServer).where(ChatServer.name == data.name)
+    ).first()
+
+    if existing_server:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Server name already exists. Please choose a different name.",
+        )
+
     # Create server
     server = ChatServer(name=data.name, icon=data.icon, created_by=user_id)
     session.add(server)
@@ -140,6 +151,50 @@ async def create_server(data: CreateServerData, token: TokenDep, session: Sessio
         created_by=str(user_id),
         created_at=server.created_at,
     )
+
+
+@router.post("/servers/{server_id}/join")
+async def join_server(server_id: str, token: TokenDep, session: SessionDep):
+    """Join an existing server using server ID"""
+    user_id = uuid.UUID(token.user_id)
+    server_uuid = uuid.UUID(server_id)
+
+    # Check if server exists
+    server = session.exec(
+        select(ChatServer).where(ChatServer.id == server_uuid)
+    ).first()
+
+    if not server:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Server not found"
+        )
+
+    # Check if user is already a member
+    existing_membership = session.exec(
+        select(ServerMembership).where(
+            ServerMembership.server_id == server_uuid,
+            ServerMembership.user_id == user_id,
+        )
+    ).first()
+
+    if existing_membership:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are already a member of this server",
+        )
+
+    # Add user to server as regular member
+    membership = ServerMembership(
+        server_id=server_uuid, user_id=user_id, role=ServerRole.MEMBER
+    )
+    session.add(membership)
+    session.commit()
+
+    return {
+        "message": "Successfully joined server",
+        "server_id": str(server_uuid),
+        "server_name": server.name,
+    }
 
 
 @router.get("/servers/{server_id}/channels", response_model=List[ChannelResponse])
