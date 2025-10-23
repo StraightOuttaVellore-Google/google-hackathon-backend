@@ -24,6 +24,7 @@ async def add_task(session: SessionDep, token_data: TokenDep, data: TaskData):
             title=data.title,
             description=data.description,
             status=data.status if data.status else TaskStatus.TODO,
+            due_date=data.due_date,
         )
         session.add(new_row)
         session.commit()
@@ -40,7 +41,7 @@ async def add_task(session: SessionDep, token_data: TokenDep, data: TaskData):
 
 @router.get("/priority_matrix")
 async def get_priority_matrix(
-    session: SessionDep, token_data: TokenDep, day: Optional[str] = None
+    session: SessionDep, token_data: TokenDep, day: Optional[str] = None, due: Optional[str] = None
 ):
     """Getting information of the users priority matrix
 
@@ -50,7 +51,16 @@ async def get_priority_matrix(
         date (Optional[str], optional): The date of the priority matrix. Accepts date in the format "yyyy-mm-dd" Defaults to None.
     """
     try:
-        if day is not None:
+        if due is not None:
+            # Filter by due_date
+            due_parts = due.split("-")
+            due_dt = date(int(due_parts[0]), int(due_parts[1]), int(due_parts[2]))
+            results = session.exec(
+                select(PriorityMatrix)
+                .where(PriorityMatrix.user_id == uuid.UUID(token_data.user_id))
+                .where(PriorityMatrix.due_date == due_dt)
+            ).all()
+        elif day is not None:
             day = day.split("-")
             day = date(int(day[0]), int(day[1]), int(day[2]))
             results = session.exec(
@@ -120,6 +130,8 @@ async def update_task(
         result.title = changed_data.title
         result.description = changed_data.description
         result.status = changed_data.status if changed_data.status else result.status
+        if changed_data.due_date is not None:
+            result.due_date = changed_data.due_date
         session.add(result)
         session.commit()
         session.refresh(result)

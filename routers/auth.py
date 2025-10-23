@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Response
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 from db import SessionDep
@@ -19,8 +19,9 @@ def login(
             select(Users).where(Users.username == login_data.username)
         ).first()
         if user_data_table_result is None:
-            return Response(
-                status_code=status.HTTP_404_NOT_FOUND, content="Invalid credentials"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "Invalid credentials", "message": "User not found"}
             )
         if verify_password(login_data.password, user_data_table_result.password):
             access_token_creation_data = TokenData(
@@ -30,18 +31,42 @@ def login(
             )
             access_token = create_jwt(access_token_creation_data)
             return Token(access_token=access_token, token_type="bearer")
-        return Response(
-            status_code=status.HTTP_404_NOT_FOUND, content="Invalid credentials"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Invalid credentials", "message": "Incorrect password"}
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        return Response(
-            status_code=status.HTTP_400_BAD_REQUEST, content=f"Exception {e} occured"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "Bad Request", "message": str(e)}
         )
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 def create_new_account(login_data: SignupData, session: SessionDep):
     try:
+        # Check if username already exists
+        existing_user = session.exec(
+            select(Users).where(Users.username == login_data.username)
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Username already exists", "message": "Please choose a different username"}
+            )
+        
+        # Check if email already exists
+        existing_email = session.exec(
+            select(Users).where(Users.email == login_data.email)
+        ).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Email already exists", "message": "This email is already registered"}
+            )
+        
         new_user = Users(
             username=login_data.username,
             password=hash_password(login_data.password),
@@ -50,9 +75,20 @@ def create_new_account(login_data: SignupData, session: SessionDep):
         )
         session.add(new_user)
         session.commit()
-        return Response(status_code=status.HTTP_201_CREATED, content="New user added")
+        session.refresh(new_user)
+        
+        return {
+            "message": "User created successfully",
+            "user_id": str(new_user.user_id),
+            "username": new_user.username,
+            "email": new_user.email
+        }
+    except HTTPException:
+        session.rollback()
+        raise
     except Exception as e:
         session.rollback()
-        return Response(
-            status_code=status.HTTP_400_BAD_REQUEST, content=f"Exception {e} occured"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "Registration failed", "message": str(e)}
         )

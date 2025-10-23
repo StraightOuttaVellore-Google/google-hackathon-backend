@@ -108,6 +108,14 @@ class PriorityMatrix(SQLModel, table=True):
     title: str
     description: str
     status: TaskStatus = Field(default=TaskStatus.TODO)
+    # Optional due date to integrate with calendar views
+    due_date: Optional[date] = Field(
+        default=None,
+        sa_column=Column(
+            DATE,
+            nullable=True,
+        ),
+    )
     created_at: Optional[date] = Field(
         sa_column=Column(
             DATE,
@@ -123,6 +131,8 @@ class TaskData(BaseModel):
     title: str
     description: str
     status: Optional[TaskStatus] = TaskStatus.TODO
+    # ISO date string (YYYY-MM-DD) for the task's due date
+    due_date: Optional[date] = None
 
 
 class DeleteTaskData(BaseModel):
