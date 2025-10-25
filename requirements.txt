@@ -7,11 +7,15 @@ pydantic[email]==2.9.2
 pyjwt==2.9.0
 pwdlib[argon2]==0.2.1
 python-multipart==0.0.12
-websockets==13.1
-google-genai==0.2.2
+websockets
+google-genai>=1.0.0
 numpy
 torch
 torchaudio
 scipy
 aiofiles
+# RAG and Vertex AI dependencies
+google-cloud-aiplatform>=1.50.0
+google-cloud-storage>=2.10.0
+pandas>=1.5.0
 

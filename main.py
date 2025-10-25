@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import logging
+import os
 
 from db import create_db_and_tables
 from routers.voice_agent_journal import router as va_router
@@ -14,14 +17,51 @@ from routers.stats import router as stats_router
 from routers.wearable import router as wearable_router
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from hybrid_rag_manager import initialize_hybrid_rag_system
+from transcript_manager import initialize_transcript_manager
+from context_logger import initialize_context_logger
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model
     create_db_and_tables()
+    
+    # Initialize hybrid RAG system
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
+    if project_id:
+        logger.info(f"Initializing hybrid RAG system for project: {project_id}")
+        try:
+            rag_success = await initialize_hybrid_rag_system(project_id)
+            if rag_success:
+                logger.info("Hybrid RAG system initialized successfully")
+            else:
+                logger.warning("Hybrid RAG system initialization failed - continuing without RAG")
+        except Exception as e:
+            logger.error(f"Error initializing hybrid RAG system: {e}")
+    else:
+        logger.warning("GOOGLE_CLOUD_PROJECT_ID not set - hybrid RAG system will not be available")
+    
+    # Initialize transcript manager
+    logger.info("Initializing transcript manager...")
+    try:
+        initialize_transcript_manager(storage_type="database", transcripts_dir="transcripts")
+        logger.info("Transcript manager initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing transcript manager: {e}")
+    
+    # Initialize context logger
+    logger.info("Initializing context logger...")
+    try:
+        initialize_context_logger(logs_dir="logs", enable_database=True, enable_file=True)
+        logger.info("Context logger initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing context logger: {e}")
+    
     yield
 
 
