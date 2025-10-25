@@ -1,0 +1,39 @@
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: google-generativeai in /home/vatsal/.local/lib/python3.10/site-packages (0.8.5)
+Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (0.6.15)
+Requirement already satisfied: google-api-core in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (2.24.0)
+Requirement already satisfied: google-api-python-client in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (2.178.0)
+Requirement already satisfied: google-auth>=2.15.0 in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (2.37.0)
+Requirement already satisfied: protobuf in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (4.25.8)
+Requirement already satisfied: pydantic in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (2.11.7)
+Requirement already satisfied: tqdm in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (4.67.1)
+Requirement already satisfied: typing-extensions in /home/vatsal/.local/lib/python3.10/site-packages (from google-generativeai) (4.13.1)
+Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /home/vatsal/.local/lib/python3.10/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai) (1.25.0)
+Requirement already satisfied: googleapis-common-protos<2.0.dev0,>=1.56.2 in /home/vatsal/.local/lib/python3.10/site-packages (from google-api-core->google-generativeai) (1.66.0)
+Requirement already satisfied: requests<3.0.0.dev0,>=2.18.0 in /home/vatsal/.local/lib/python3.10/site-packages (from google-api-core->google-generativeai) (2.32.4)
+Requirement already satisfied: cachetools<6.0,>=2.0.0 in /home/vatsal/.local/lib/python3.10/site-packages (from google-auth>=2.15.0->google-generativeai) (5.5.0)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/vatsal/.local/lib/python3.10/site-packages (from google-auth>=2.15.0->google-generativeai) (0.4.1)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/vatsal/.local/lib/python3.10/site-packages (from google-auth>=2.15.0->google-generativeai) (4.9)
+Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /usr/lib/python3/dist-packages (from google-api-python-client->google-generativeai) (0.20.2)
+Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /home/vatsal/.local/lib/python3.10/site-packages (from google-api-python-client->google-generativeai) (0.2.0)
+Requirement already satisfied: uritemplate<5,>=3.0.1 in /home/vatsal/.local/lib/python3.10/site-packages (from google-api-python-client->google-generativeai) (4.1.1)
+Requirement already satisfied: annotated-types>=0.6.0 in /home/vatsal/.local/lib/python3.10/site-packages (from pydantic->google-generativeai) (0.7.0)
+Requirement already satisfied: pydantic-core==2.33.2 in /home/vatsal/.local/lib/python3.10/site-packages (from pydantic->google-generativeai) (2.33.2)
+Requirement already satisfied: typing-inspection>=0.4.0 in /home/vatsal/.local/lib/python3.10/site-packages (from pydantic->google-generativeai) (0.4.0)
+Requirement already satisfied: grpcio<2.0dev,>=1.33.2 in /home/vatsal/.local/lib/python3.10/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai) (1.72.0rc1)
+Requirement already satisfied: grpcio-status<2.0.dev0,>=1.33.2 in /home/vatsal/.local/lib/python3.10/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai) (1.71.0)
+Requirement already satisfied: pyparsing!=3.0.0,!=3.0.1,!=3.0.2,!=3.0.3,<4,>=2.4.2 in /usr/lib/python3/dist-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai) (2.4.7)
+Requirement already satisfied: pyasn1<0.7.0,>=0.4.6 in /home/vatsal/.local/lib/python3.10/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai) (0.4.8)
+Requirement already satisfied: charset_normalizer<4,>=2 in /usr/lib/python3/dist-packages (from requests<3.0.0.dev0,>=2.18.0->google-api-core->google-generativeai) (2.0.6)
+Requirement already satisfied: idna<4,>=2.5 in /usr/lib/python3/dist-packages (from requests<3.0.0.dev0,>=2.18.0->google-api-core->google-generativeai) (3.3)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /home/vatsal/.local/lib/python3.10/site-packages (from requests<3.0.0.dev0,>=2.18.0->google-api-core->google-generativeai) (2.3.0)
+Requirement already satisfied: certifi>=2017.4.17 in /home/vatsal/.local/lib/python3.10/site-packages (from requests<3.0.0.dev0,>=2.18.0->google-api-core->google-generativeai) (2025.1.31)
+Collecting protobuf (from google-generativeai)
+  Using cached protobuf-5.29.5-cp38-abi3-manylinux2014_x86_64.whl.metadata (592 bytes)
+Using cached protobuf-5.29.5-cp38-abi3-manylinux2014_x86_64.whl (319 kB)
+Installing collected packages: protobuf
+  Attempting uninstall: protobuf
+    Found existing installation: protobuf 4.25.8
+    Uninstalling protobuf-4.25.8:
+      Successfully uninstalled protobuf-4.25.8
+Successfully installed protobuf-5.29.5

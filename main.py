@@ -4,13 +4,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import create_db_and_tables
 from routers.voice_agent_journal import router as va_router
+<<<<<<< HEAD
 from routers.voice_agent import router as voice_agent_router
+=======
+>>>>>>> origin/main
 from routers.priority_matrix import router as pm_router
 from routers.auth import router as auth_router
 from routers.chat import router as chat_router
 from routers.daily_journal import router as daily_journal_router
 from routers.moodboard import router as moodboard_router
 from routers.stats import router as stats_router
+<<<<<<< HEAD
+=======
+from routers.wearable import router as wearable_router
+>>>>>>> origin/main
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -56,10 +63,17 @@ async def get_health():
 
 
 app.include_router(va_router)
+<<<<<<< HEAD
 app.include_router(voice_agent_router)
+=======
+>>>>>>> origin/main
 app.include_router(pm_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(daily_journal_router)
 app.include_router(moodboard_router)
 app.include_router(stats_router)
+<<<<<<< HEAD
+=======
+app.include_router(wearable_router)
+>>>>>>> origin/main

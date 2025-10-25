@@ -526,3 +526,221 @@ class PomodoroSession(SQLModel, table=True):
 
 class PomodoroSessionInput(BaseModel):
     pass
+<<<<<<< HEAD
+=======
+
+
+# Wearable Device Models
+class WearableDeviceType(str, Enum):
+    SMART_WATCH = "smart_watch"
+    FITNESS_TRACKER = "fitness_tracker"
+    SMART_GLASSES = "smart_glasses"
+    RING = "ring"
+
+
+class WearableDevice(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    device_type: WearableDeviceType
+    device_name: str  # "Apple Watch Series 9", "Fitbit Sense 2"
+    device_id: str  # Unique device identifier
+    is_active: bool = Field(default=True)
+    last_sync: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=True,
+        )
+    )
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class WearableData(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    device_id: uuid.UUID = Field(foreign_key="wearabledevice.id", index=True)
+    data_date: date = Field(sa_column=Column(DATE, nullable=False, index=True))
+    
+    # Sleep Data (HIGH PRIORITY)
+    sleep_duration_hours: Optional[float] = None
+    sleep_efficiency: Optional[float] = None  # 0-1 scale
+    deep_sleep_hours: Optional[float] = None
+    rem_sleep_hours: Optional[float] = None
+    light_sleep_hours: Optional[float] = None
+    sleep_score: Optional[int] = None  # 1-100
+    bedtime: Optional[datetime] = None
+    wake_time: Optional[datetime] = None
+    
+    # Heart Rate Data (HIGH PRIORITY)
+    avg_heart_rate: Optional[int] = None
+    resting_heart_rate: Optional[int] = None
+    max_heart_rate: Optional[int] = None
+    hrv_rmssd: Optional[float] = None  # Heart Rate Variability
+    hrv_z_score: Optional[float] = None  # Z-score for HRV
+    
+    # Activity Data (HIGH PRIORITY)
+    steps: Optional[int] = None
+    calories_burned: Optional[int] = None
+    active_minutes: Optional[int] = None
+    distance_km: Optional[float] = None
+    floors_climbed: Optional[int] = None
+    
+    # Stress & Recovery (HIGH PRIORITY)
+    stress_score: Optional[float] = None  # 0-1 scale
+    stress_events: Optional[int] = None  # Number of stress events
+    recovery_score: Optional[int] = None  # 1-100
+    energy_level: Optional[str] = None  # "low", "medium", "high"
+    
+    # Environmental Data (MEDIUM PRIORITY)
+    ambient_temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    noise_level: Optional[float] = None  # dB
+    light_level: Optional[str] = None  # "low", "medium", "high"
+    
+    # Additional Metrics
+    breathing_rate: Optional[float] = None
+    blood_oxygen: Optional[float] = None  # SpO2
+    
+    # Raw data storage for complex metrics
+    raw_data: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class WearableInsights(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    insight_date: date = Field(sa_column=Column(DATE, nullable=False, index=True))
+    insight_type: str  # "recovery_score", "stress_analysis", "focus_recommendation", "sleep_analysis"
+    
+    # Core Insights
+    overall_recovery_score: Optional[int] = None  # 1-100
+    sleep_debt_hours: Optional[float] = None
+    stress_level: Optional[str] = None  # "low", "medium", "high"
+    focus_recommendation: Optional[str] = None  # "high", "medium", "low"
+    
+    # AI-Generated Insights
+    ai_insights: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    confidence_score: Optional[float] = None  # 0-1
+    
+    # Recommendations
+    recommended_focus_duration: Optional[int] = None  # minutes
+    recommended_break_duration: Optional[int] = None  # minutes
+    recommended_activities: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+# Pydantic Models for API
+class WearableDeviceInput(BaseModel):
+    device_type: WearableDeviceType
+    device_name: str
+    device_id: str
+
+
+class WearableDataInput(BaseModel):
+    device_id: str
+    data_date: str  # ISO date format YYYY-MM-DD
+    
+    # Sleep Data
+    sleep_duration_hours: Optional[float] = None
+    sleep_efficiency: Optional[float] = None
+    deep_sleep_hours: Optional[float] = None
+    rem_sleep_hours: Optional[float] = None
+    light_sleep_hours: Optional[float] = None
+    sleep_score: Optional[int] = None
+    bedtime: Optional[str] = None  # ISO datetime
+    wake_time: Optional[str] = None  # ISO datetime
+    
+    # Heart Rate Data
+    avg_heart_rate: Optional[int] = None
+    resting_heart_rate: Optional[int] = None
+    max_heart_rate: Optional[int] = None
+    hrv_rmssd: Optional[float] = None
+    hrv_z_score: Optional[float] = None
+    
+    # Activity Data
+    steps: Optional[int] = None
+    calories_burned: Optional[int] = None
+    active_minutes: Optional[int] = None
+    distance_km: Optional[float] = None
+    floors_climbed: Optional[int] = None
+    
+    # Stress & Recovery
+    stress_score: Optional[float] = None
+    stress_events: Optional[int] = None
+    recovery_score: Optional[int] = None
+    energy_level: Optional[str] = None
+    
+    # Environmental Data
+    ambient_temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    noise_level: Optional[float] = None
+    light_level: Optional[str] = None
+    
+    # Additional Metrics
+    breathing_rate: Optional[float] = None
+    blood_oxygen: Optional[float] = None
+    
+    # Raw data
+    raw_data: Optional[Dict] = None
+
+
+class WearableAnalysisRequest(BaseModel):
+    data_date: str
+    analysis_type: str  # "comprehensive", "stress_focus", "sleep_recovery"
+    include_recommendations: bool = True
+
+
+class WearableInsightsResponse(BaseModel):
+    insight_date: str
+    overall_recovery_score: int
+    sleep_debt_hours: float
+    stress_level: str
+    focus_recommendation: str
+    ai_insights: Dict
+    confidence_score: float
+    recommended_focus_duration: int
+    recommended_break_duration: int
+    recommended_activities: Dict
+>>>>>>> origin/main
