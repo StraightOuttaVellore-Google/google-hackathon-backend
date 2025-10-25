@@ -526,8 +526,6 @@ class PomodoroSession(SQLModel, table=True):
 
 class PomodoroSessionInput(BaseModel):
     pass
-<<<<<<< HEAD
-=======
 
 
 # Wearable Device Models
@@ -743,4 +741,3 @@ class WearableInsightsResponse(BaseModel):
     recommended_focus_duration: int
     recommended_break_duration: int
     recommended_activities: Dict
->>>>>>> origin/main

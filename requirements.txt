@@ -8,13 +8,10 @@ pyjwt==2.9.0
 pwdlib[argon2]==0.2.1
 python-multipart==0.0.12
 websockets==13.1
-<<<<<<< HEAD
 google-genai==0.2.2
 numpy
 torch
 torchaudio
 scipy
 aiofiles
-=======
->>>>>>> origin/main
 

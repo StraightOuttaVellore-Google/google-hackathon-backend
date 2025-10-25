@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Environment variables
 *.env
 .env
@@ -158,7 +157,3 @@ Thumbs.db
 # API keys and secrets
 secrets.json
 config.json
-=======
-*.env
-*__pycache__
->>>>>>> origin/main
