@@ -9,8 +9,6 @@ from dotenv import load_dotenv
 from websockets import connect
 from typing import Dict
 import numpy as np
-import torch
-from scipy import signal
 
 from google.genai.types import GenerateContentConfig
 
@@ -32,7 +30,11 @@ router = APIRouter(tags=["VoiceAgent"])
 # Voice Activity Detector
 class VoiceActivityDetector:
     def __init__(self):
+        self.torch = None
         try:
+            # Lazy import torch to avoid DLL initialization errors on Windows
+            import torch
+            self.torch = torch
             self.model, _ = torch.hub.load(repo_or_dir='snakers4/silero-vad',
                                          model='silero_vad',
                                          force_reload=False)
@@ -49,6 +51,9 @@ class VoiceActivityDetector:
         """Resample audio data to target sample rate"""
         if original_rate == target_rate:
             return audio_data
+        
+        # Lazy import scipy to avoid NumPy version compatibility issues
+        from scipy import signal
         
         # Calculate resampling ratio
         ratio = target_rate / original_rate
@@ -93,10 +98,13 @@ class VoiceActivityDetector:
                 audio_float = audio_float[start_idx:start_idx + required_samples]
             
             # Convert to torch tensor with proper shape [1, samples] and float32 precision
-            audio_tensor = torch.from_numpy(audio_float).unsqueeze(0).float()
+            if self.torch is None:
+                import torch
+                self.torch = torch
+            audio_tensor = self.torch.from_numpy(audio_float).unsqueeze(0).float()
             
             # Get speech probability
-            with torch.no_grad():
+            with self.torch.no_grad():
                 speech_prob = self.model(audio_tensor, self.target_sample_rate).item()
             
             # Use adaptive threshold based on audio level - make it less aggressive

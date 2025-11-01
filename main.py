@@ -12,6 +12,7 @@ from routers.daily_journal import router as daily_journal_router
 from routers.moodboard import router as moodboard_router
 from routers.stats import router as stats_router
 from routers.wearable import router as wearable_router
+from routers.reddit import router as reddit_router
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -22,6 +23,13 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # Load the ML model
     create_db_and_tables()
+    # Seed Reddit countries if they don't exist
+    try:
+        from seed_reddit_countries import seed_countries
+        seed_countries()
+    except Exception as e:
+        print(f"Note: Could not seed countries automatically: {e}")
+        print("You can run 'python seed_reddit_countries.py' manually")
     yield
 
 
@@ -65,3 +73,4 @@ app.include_router(daily_journal_router)
 app.include_router(moodboard_router)
 app.include_router(stats_router)
 app.include_router(wearable_router)
+app.include_router(reddit_router)

@@ -741,3 +741,268 @@ class WearableInsightsResponse(BaseModel):
     recommended_focus_duration: int
     recommended_break_duration: int
     recommended_activities: Dict
+
+
+# Reddit Models
+class Country(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    iso_code: str = Field(index=True, unique=True, max_length=3)  # e.g., 'US', 'IN', 'GB'
+    name: str = Field(max_length=100)
+    flag_emoji: Optional[str] = Field(default=None, max_length=10)
+    description: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class RedditPost(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    country_id: uuid.UUID = Field(foreign_key="country.id", index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    title: str = Field(max_length=300)
+    content: str
+    media_urls: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    score: int = Field(default=0)
+    comment_count: int = Field(default=0)
+    is_pinned: bool = Field(default=False)
+    is_hidden: bool = Field(default=False)
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class RedditComment(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    post_id: uuid.UUID = Field(foreign_key="redditpost.id", index=True)
+    parent_id: Optional[uuid.UUID] = Field(foreign_key="redditcomment.id", default=None, index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    content: str
+    score: int = Field(default=0)
+    is_hidden: bool = Field(default=False)
+    depth: int = Field(default=0)
+    path: Optional[str] = None  # Materialized path for efficient queries
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class RedditVote(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    post_id: Optional[uuid.UUID] = Field(foreign_key="redditpost.id", default=None, index=True)
+    comment_id: Optional[uuid.UUID] = Field(foreign_key="redditcomment.id", default=None, index=True)
+    vote_type: int = Field()  # 1 for upvote, -1 for downvote
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class CountrySubscription(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    country_id: uuid.UUID = Field(foreign_key="country.id", index=True)
+    subscribed_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class CountryRole(str, Enum):
+    ADMIN = "admin"
+    MODERATOR = "moderator"
+    MEMBER = "member"
+
+
+class RedditCountryRole(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    country_id: uuid.UUID = Field(foreign_key="country.id", index=True)
+    role: CountryRole = Field(default=CountryRole.MEMBER)
+    assigned_by: Optional[uuid.UUID] = Field(foreign_key="users.user_id", default=None)
+    assigned_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class RedditReport(SQLModel, table=True):
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    reporter_id: uuid.UUID = Field(foreign_key="users.user_id", index=True)
+    post_id: Optional[uuid.UUID] = Field(foreign_key="redditpost.id", default=None, index=True)
+    comment_id: Optional[uuid.UUID] = Field(foreign_key="redditcomment.id", default=None, index=True)
+    reason: str = Field(max_length=100)
+    description: Optional[str] = None
+    status: str = Field(default="pending", max_length=20)  # 'pending', 'resolved', 'dismissed'
+    reviewed_by: Optional[uuid.UUID] = Field(foreign_key="users.user_id", default=None)
+    reviewed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+# Pydantic models for Reddit API
+class CountryCreate(BaseModel):
+    iso_code: str
+    name: str
+    flag_emoji: Optional[str] = None
+    description: Optional[str] = None
+
+
+class CountryResponse(BaseModel):
+    id: str
+    iso_code: str
+    name: str
+    flag_emoji: Optional[str] = None
+    description: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+
+class PostCreate(BaseModel):
+    title: str
+    content: str
+    media_urls: Optional[Dict] = None
+
+
+class PostResponse(BaseModel):
+    id: str
+    country_id: str
+    country_name: str
+    user_id: str
+    username: str
+    title: str
+    content: str
+    media_urls: Optional[Dict] = None
+    score: int
+    comment_count: int
+    is_pinned: bool
+    is_hidden: bool
+    user_vote: Optional[int] = None  # 1, -1, or None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CommentCreate(BaseModel):
+    content: str
+    parent_id: Optional[str] = None
+
+
+class CommentResponse(BaseModel):
+    id: str
+    post_id: str
+    parent_id: Optional[str] = None
+    user_id: str
+    username: str
+    content: str
+    score: int
+    is_hidden: bool
+    depth: int
+    user_vote: Optional[int] = None  # 1, -1, or None
+    created_at: datetime
+    updated_at: datetime
+
+
+class VoteRequest(BaseModel):
+    vote_type: int  # 1 for upvote, -1 for downvote
+
+
+class ReportRequest(BaseModel):
+    reason: str
+    description: Optional[str] = None
