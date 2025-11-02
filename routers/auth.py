@@ -1,36 +1,60 @@
+"""
+Authentication Router - Firebase Version
+
+Handles user authentication using Firebase Firestore only.
+"""
+
 from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import select
-from db import SessionDep
-from model import TypesOfCustomers, Users, Token, TokenData, SignupData
+from model import TypesOfCustomers, Token, TokenData, SignupData
 from utils import verify_password, create_jwt, hash_password
 from typing import Annotated
+from datetime import datetime
+from google.cloud.firestore_v1 import SERVER_TIMESTAMP
+import uuid
 
+from firebase_db import get_firestore
 
 router = APIRouter(tags=["Authentication"])
 
 
 @router.post("/login", response_model=Token)
 def login(
-    login_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
+    login_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
+    """
+    Login endpoint - uses Firebase Firestore only
+    """
     try:
-        user_data_table_result = session.exec(
-            select(Users).where(Users.username == login_data.username)
-        ).first()
-        if user_data_table_result is None:
+        db = get_firestore()
+        users_ref = db.collection('users')
+        query = users_ref.where('username', '==', login_data.username).limit(1)
+        user_docs = list(query.stream())
+        
+        if not user_docs:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error": "Invalid credentials", "message": "User not found"}
             )
-        if verify_password(login_data.password, user_data_table_result.password):
+        
+        user_doc = user_docs[0]
+        user_data = user_doc.to_dict()
+        user_data['user_id'] = user_doc.id  # Document ID is user_id
+        
+        if verify_password(login_data.password, user_data["password"]):
+            # Get type_of_customer (handle enum or string)
+            type_of_customer = user_data.get("type_of_customer")
+            if hasattr(type_of_customer, 'value'):
+                type_of_customer = type_of_customer.value
+            
             access_token_creation_data = TokenData(
-                user_id=str(user_data_table_result.user_id),
-                username=user_data_table_result.username,
-                type_of_customer=user_data_table_result.type_of_customer,
+                user_id=str(user_data["user_id"]),
+                username=user_data["username"],
+                type_of_customer=TypesOfCustomers(type_of_customer) if isinstance(type_of_customer, str) else type_of_customer,
             )
             access_token = create_jwt(access_token_creation_data)
             return Token(access_token=access_token, token_type="bearer")
+        
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "Invalid credentials", "message": "Incorrect password"}
@@ -45,49 +69,52 @@ def login(
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-def create_new_account(login_data: SignupData, session: SessionDep):
+def create_new_account(login_data: SignupData):
+    """
+    Create new account - saves to Firebase Firestore only
+    """
     try:
-        # Check if username already exists
-        existing_user = session.exec(
-            select(Users).where(Users.username == login_data.username)
-        ).first()
-        if existing_user:
+        db = get_firestore()
+        users_ref = db.collection('users')
+        
+        # Check username
+        username_query = users_ref.where('username', '==', login_data.username).limit(1)
+        if list(username_query.stream()):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": "Username already exists", "message": "Please choose a different username"}
             )
         
-        # Check if email already exists
-        existing_email = session.exec(
-            select(Users).where(Users.email == login_data.email)
-        ).first()
-        if existing_email:
+        # Check email
+        email_query = users_ref.where('email', '==', login_data.email).limit(1)
+        if list(email_query.stream()):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": "Email already exists", "message": "This email is already registered"}
             )
         
-        new_user = Users(
-            username=login_data.username,
-            password=hash_password(login_data.password),
-            email=login_data.email,
-            type_of_customer=TypesOfCustomers.FREE,
-        )
-        session.add(new_user)
-        session.commit()
-        session.refresh(new_user)
+        # Create user in Firestore
+        user_id = str(uuid.uuid4())
+        user_data = {
+            "username": login_data.username,
+            "password": hash_password(login_data.password),
+            "email": login_data.email,
+            "type_of_customer": TypesOfCustomers.FREE.value,
+            "created_at": SERVER_TIMESTAMP,
+        }
+        
+        users_ref.document(user_id).set(user_data)
         
         return {
             "message": "User created successfully",
-            "user_id": str(new_user.user_id),
-            "username": new_user.username,
-            "email": new_user.email
+            "user_id": user_id,
+            "username": login_data.username,
+            "email": login_data.email
         }
+        
     except HTTPException:
-        session.rollback()
         raise
     except Exception as e:
-        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "Registration failed", "message": str(e)}

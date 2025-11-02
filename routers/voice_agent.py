@@ -9,14 +9,18 @@ from dotenv import load_dotenv
 from websockets import connect
 from typing import Dict
 import numpy as np
+import torch
+from scipy import signal
+import io
 
 from google.genai.types import GenerateContentConfig
+from google.cloud import speech_v1
 
 load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Changed to DEBUG to see part contents
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('voice_agent_backend.log'),
@@ -26,6 +30,60 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["VoiceAgent"])
+
+# Initialize Speech-to-Text client
+try:
+    stt_client = speech_v1.SpeechClient()
+    logger.info("✅ Google Cloud Speech-to-Text client initialized")
+except Exception as e:
+    logger.warning(f"⚠️ Could not initialize Speech-to-Text client: {e}")
+    stt_client = None
+
+async def transcribe_audio(audio_base64: str, sample_rate: int = 24000, language_code: str = "en-IN") -> str:
+    """
+    Transcribe audio using Google Cloud Speech-to-Text API (ASYNC, NON-BLOCKING)
+    Supports HINDI and ENGLISH only with automatic language detection.
+    """
+    if not stt_client:
+        logger.warning("STT client not available")
+        return None
+        
+    try:
+        # Decode base64 audio in executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        audio_bytes = await loop.run_in_executor(None, base64.b64decode, audio_base64)
+        
+        # Configure recognition - HINDI and ENGLISH ONLY
+        config = speech_v1.RecognitionConfig(
+            encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=sample_rate,
+            language_code=language_code,  # Primary language (Indian English)
+            alternative_language_codes=["hi-IN", "en-US"],  # ONLY Hindi and US English (no Tamil/Telugu/etc)
+            enable_automatic_punctuation=True,
+            model="latest_long",  # Better model for Hindi/English code-switching
+        )
+        
+        audio = speech_v1.RecognitionAudio(content=audio_bytes)
+        
+        # Perform transcription in executor (NON-BLOCKING!)
+        logger.debug("🔄 Starting async transcription...")
+        response = await loop.run_in_executor(
+            None,
+            lambda: stt_client.recognize(config=config, audio=audio)
+        )
+        
+        # Extract transcription
+        if response.results:
+            transcript = response.results[0].alternatives[0].transcript
+            logger.info(f"🎯 STT Transcribed: {transcript}")
+            return transcript
+        else:
+            logger.debug("No transcription results from STT")
+            return None
+            
+    except Exception as e:
+        logger.error(f"❌ Error transcribing audio: {e}")
+        return None
 
 # Voice Activity Detector
 class VoiceActivityDetector:
@@ -146,6 +204,7 @@ class AwaazConnection:
         self.vad = VoiceActivityDetector()
         self.is_playing = False
         self.vad_enabled = True  # Flag to enable/disable VAD
+        self.language = "en-IN"  # Default language for transcription
 
     async def connect(self):
         """Initialize connection to Awaaz"""
@@ -168,6 +227,8 @@ class AwaazConnection:
             logger.info("✅ AwaazConnection: WebSocket connection established")
 
             # Configure generation settings
+            # Note: Gemini Live API only accepts "AUDIO" as response_modality
+            # but automatically includes text transcriptions in the response parts
             generation_config = {
                 "response_modalities": ["AUDIO"],
                 "speech_config": {
@@ -225,7 +286,9 @@ class AwaazConnection:
         self.config = config
         # Check if VAD should be disabled
         self.vad_enabled = config.get("vad_enabled", True)
-        logger.info(f"VAD enabled: {self.vad_enabled}")
+        # Set language for transcription
+        self.language = config.get("language", "en-IN")
+        logger.info(f"VAD enabled: {self.vad_enabled}, Language: {self.language}")
 
     async def send_audio(self, audio_data: str, sample_rate: int = 16000):
         """Send audio data to Awaaz with voice activity detection"""
@@ -396,7 +459,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         # Get the configuration and apply mode-specific system prompt
         config = config_data.get("config", {})
         mode = config.get("mode", "wellness")
-        logger.info(f"🔧 Processing configuration for mode: {mode}")
+        language = config.get("language", "en-IN")  # Default to Indian English
+        logger.info(f"🔧 Processing configuration for mode: {mode}, language: {language}")
         logger.info(f"🔧 Full config: {config}")
         
         # Apply mode-specific system prompt
@@ -500,32 +564,82 @@ Remember: You're a listening companion, not a therapist. Your job is to help the
         async def receive_from_client():
             try:
                 logger.info("Starting to receive from client...")
+                
                 while True:
                     try:
                         message = await websocket.receive()
-                        logger.debug(f"Received message from client: {message['type']}")
                         
-                        # Check for close message
                         if message["type"] == "websocket.disconnect":
                             logger.info("Received disconnect message")
                             return
                             
                         message_content = json.loads(message["text"])
                         msg_type = message_content["type"]
-                        logger.debug(f"Message type: {msg_type}")
                         
                         if msg_type == "audio":
                             sample_rate = message_content.get("sampleRate", 44100)
-                            data_length = len(message_content.get("data", ""))
-                            # Only log audio message details occasionally
-                            if not hasattr(awaaz, '_client_message_count'):
-                                awaaz._client_message_count = 0
-                            awaaz._client_message_count += 1
-                            if awaaz._client_message_count % 100 == 0:
-                                logger.debug(f"Audio message: {data_length} chars, sample_rate: {sample_rate}")
-                            await awaaz.send_audio(message_content["data"], sample_rate)    
+                            audio_data = message_content.get("data", "")
+                            await awaaz.send_audio(audio_data, sample_rate)
+                        
+                        # Handle user transcription from frontend
+                        elif msg_type == "user_transcription":
+                            user_text = message_content.get("text", "")
+                            timestamp = message_content.get("timestamp", datetime.now().isoformat())
+                            
+                            logger.info(f"User transcription: {user_text}")
+                            
+                            # Echo back for confirmation/storage
+                            try:
+                                await websocket.send_json({
+                                    "type": "transcription",
+                                    "role": "user",
+                                    "text": user_text,
+                                    "timestamp": timestamp
+                                })
+                            except Exception as send_error:
+                                logger.error(f"Error echoing user transcription: {send_error}")
+                        
+                        # Handle AI audio transcription request (PLAYED chunks only!)
+                        elif msg_type == "transcribe_played_audio":
+                            audio_chunks = message_content.get("audioChunks", [])
+                            sample_rate = message_content.get("sampleRate", 24000)
+                            
+                            if audio_chunks:
+                                logger.info(f"🎬 Received {len(audio_chunks)} PLAYED audio chunks for transcription")
+                                
+                                # Combine all played chunks
+                                combined_audio = "".join(audio_chunks)
+                                
+                                # Transcribe using Google Cloud Speech-to-Text (ASYNC, NON-BLOCKING)
+                                # Use the language configuration from the Awaaz connection
+                                transcription = await transcribe_audio(
+                                    combined_audio, 
+                                    sample_rate=sample_rate,
+                                    language_code=awaaz.language
+                                )
+                                
+                                if transcription:
+                                    logger.info(f"✅ AI transcription successful: {transcription}")
+                                    
+                                    # Send transcription to frontend
+                                    try:
+                                        await websocket.send_json({
+                                            "type": "turn_complete",
+                                            "role": "assistant",
+                                            "text": transcription,
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+                                        logger.info("Turn complete message sent with transcription")
+                                    except Exception as send_error:
+                                        logger.error(f"Error sending turn complete message: {send_error}")
+                                else:
+                                    logger.warning("⚠️ No transcription generated from played audio")
+                            else:
+                                logger.debug("No played audio chunks to transcribe")
+                        
                         else:
                             logger.warning(f"Unknown message type: {msg_type}")
+                            
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e}")
                         continue
@@ -545,13 +659,8 @@ Remember: You're a listening companion, not a therapist. Your job is to help the
         async def receive_from_awaaz():
             try:
                 logger.info("Starting to receive from Gemini API...")
-                logger.debug(f"Awaaz running status: {awaaz.running}")
-                logger.debug(f"Awaaz WebSocket status: {awaaz.ws is not None}")
-                if awaaz.ws:
-                    logger.debug(f"WebSocket state: {awaaz.ws.state}")
                 message_count = 0
                 
-                # Use async for loop like in standalone implementation
                 if not awaaz.ws:
                     logger.error("WebSocket is not available")
                     return
@@ -563,88 +672,73 @@ Remember: You're a listening companion, not a therapist. Your job is to help the
                         
                     try:
                         message_count += 1
-                        logger.debug(f"Raw message from Gemini: {len(msg)} chars")
-                        logger.debug(f"Message preview: {msg[:500]}...")
-                        
                         response = json.loads(msg)
-                        logger.info(f"Parsed response keys: {list(response.keys())}")
-                        logger.info(f"Full response structure: {json.dumps(response, indent=2)}")
                         
-                        # Process Gemini 2.0 WebSocket response format
                         if "serverContent" in response:
                             server_content = response["serverContent"]
-                            logger.debug(f"Server content keys: {list(server_content.keys())}")
                             
                             if "modelTurn" in server_content:
                                 model_turn = server_content["modelTurn"]
-                                logger.debug(f"Model turn keys: {list(model_turn.keys())}")
                                 
                                 if "parts" in model_turn:
                                     parts = model_turn["parts"]
-                                    logger.info(f"Model turn parts: {len(parts)} parts received")
                                     
                                     for i, part in enumerate(parts):
-                                        logger.debug(f"Part {i} keys: {list(part.keys())}")
+                                        # Log what keys are in each part
+                                        logger.debug(f"Part {i} contains keys: {list(part.keys())}")
                                         
+                                        # Check if Gemini sent text (unlikely but possible)
+                                        if "text" in part:
+                                            text_content = part["text"]
+                                            logger.info(f"✅ AI text from Gemini: {text_content}")
+                                            
+                                            # Send transcription to frontend immediately
+                                            try:
+                                                await websocket.send_json({
+                                                    "type": "transcription",
+                                                    "role": "assistant",
+                                                    "text": text_content,
+                                                    "timestamp": datetime.now().isoformat()
+                                                })
+                                            except Exception as send_error:
+                                                logger.error(f"Error sending transcription: {send_error}")
+                                        
+                                        # Handle audio playback (frontend will track played chunks)
                                         if "inlineData" in part:
-                                            # This indicates audio data
-                                            logger.info("Audio data found in response!")
                                             awaaz.is_playing = True
                                             
-                                            # Extract both the audio data and its MIME type
+                                            # Extract the audio data
                                             inline_data = part["inlineData"]
                                             audio_data_b64 = inline_data["data"]
-                                            mime_type = inline_data.get("mimeType", "audio/opus")  # Default to Opus for Gemini Live API
+                                            mime_type = inline_data.get("mimeType", "audio/pcm;rate=24000")
                                             
-                                            logger.info(f"Audio data: {len(audio_data_b64)} chars with MIME type: {mime_type}")
-                                            
+                                            # Send audio to frontend for playback
+                                            # Frontend will track which chunks are actually played!
                                             try:
-                                                # Send both data and mimeType to the frontend
                                                 await websocket.send_json({
                                                     "type": "audio",
                                                     "data": audio_data_b64,
                                                     "mimeType": mime_type
                                                 })
-                                                logger.info("Audio data sent to frontend successfully")
                                             except Exception as send_error:
                                                 logger.error(f"Error sending audio to frontend: {send_error}")
-                                                return
-                                                
-                                        elif "text" in part:
-                                            # If the model also responds with text, forward it
-                                            text_content = part["text"]
-                                            logger.info(f"Text response: {text_content}")
-                                            try:
-                                                await websocket.send_json({
-                                                    "type": "text",
-                                                    "text": text_content
-                                                })
-                                                logger.info("Text response sent to frontend")
-                                            except Exception as send_error:
-                                                logger.error(f"Error sending text to frontend: {send_error}")
-                                                return
-                                        else:
-                                            logger.warning(f"Unknown part type: {part}")
-                                else:
-                                    logger.warning("No parts in modelTurn")
-                            else:
-                                logger.warning("No modelTurn in serverContent")
                             
                             # Check if the model ended its turn
                             if server_content.get("turnComplete"):
                                 awaaz.is_playing = False
-                                logger.info("Turn completed by Gemini")
+                                logger.info("🎬 Turn completed by Gemini")
+                                
+                                # Send listening status to frontend
+                                # Frontend will then send played audio chunks for transcription
                                 try:
                                     await websocket.send_json({
                                         "type": "status",
                                         "status": "listening"
                                     })
-                                    logger.info("Listening status sent to frontend")
+                                    logger.info("Listening status sent to frontend (frontend will send played chunks)")
                                 except Exception as send_error:
                                     logger.error(f"Error sending status: {send_error}")
                                     return
-                            else:
-                                logger.debug("Turn not complete yet")
                         else:
                             logger.warning(f"Unexpected response format: {response}")
                             # Check if this is a different type of response

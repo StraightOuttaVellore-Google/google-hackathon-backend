@@ -1,0 +1,63 @@
+# Python cache and build artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Git
+.git
+.gitignore
+
+# Environment files (but NOT .env.production)
+.env
+.env.local
+.env.development
+.venv
+venv
+
+# Logs
+*.log
+voice_agent_backend.log
+
+# Documentation (exclude from Docker image)
+*.md
+!README.md
+!START_HERE.md
+
+# Test files
+test_*.py
+.pytest_cache
+.coverage
+htmlcov
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Scripts not needed in production
+setup_stt.sh
+run_analysis_test.sh
+ensure_test_user.py
+dataset_processor.py
+
+# Keep only Firebase seed script, remove old PostgreSQL one
+seed_chat_data.py
+
+# IMPORTANT: DO NOT exclude these files - needed for production!
+# !firebase-service-account.json (included by default)
+# !voice-agent-stt-key.json (included by default)
+# !seed_chat_firebase.py (included by default)
+# !seed_reddit_countries.py (included by default)
+

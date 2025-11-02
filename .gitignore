@@ -157,3 +157,16 @@ Thumbs.db
 # API keys and secrets
 secrets.json
 config.json
+firebase-service-account.json
+voice-agent-stt-key.json
+*.key.json
+*service-account*.json
+.env.production
+.env.local
+.env.*.local
+
+# Keep important JSON files
+!package.json
+!package-lock.json
+!tsconfig.json
+!.pre-commit-config.yaml

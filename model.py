@@ -937,6 +937,203 @@ class RedditReport(SQLModel, table=True):
     )
 
 
+# Wellness Agent Models for Voice Journal Analysis
+
+class WellnessMode(str, Enum):
+    """Mode determines which agent system to activate"""
+    STUDY = "study"  # Academic stress management
+    WELLNESS = "wellness"  # General wellness (matches voice_agent.py)
+
+class WellnessPathwayStatus(str, Enum):
+    SUGGESTED = "suggested"
+    REGISTERED = "registered"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+class WellnessPathway(SQLModel, table=True):
+    """Wellness pathways suggested by agents and tracked for users"""
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    pathway_name: str
+    pathway_type: str  # mindfulness, exercise, study_technique, stress_management, etc.
+    description: str
+    duration_days: int = Field(default=7)  # Default 1 week pathway
+    status: WellnessPathwayStatus = Field(default=WellnessPathwayStatus.SUGGESTED)
+    progress_percentage: int = Field(default=0)
+    started_date: Optional[date] = None
+    completed_date: Optional[date] = None
+    extra_data: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))  # Renamed from 'metadata' to avoid SQLModel conflict
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    updated_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+class AgentRecommendedTask(SQLModel, table=True):
+    """Tasks recommended by wellness agents"""
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    task_title: str
+    task_description: str
+    quadrant: Quadrant  # Maps to Eisenhower Matrix
+    status: TaskStatus = Field(default=TaskStatus.TODO)
+    due_date: date  # Auto-calculated based on urgency
+    from_agent_session: Optional[uuid.UUID] = None  # Links to journal analysis
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+# Voice Journal Session Model (links transcript to analysis)
+class VoiceJournalSession(SQLModel, table=True):
+    """Track voice journal sessions and their analysis"""
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            server_default=text("gen_random_uuid()"),
+        )
+    )
+    user_id: uuid.UUID = Field(index=True, foreign_key="users.user_id")
+    mode: str  # "study" or "wellness"
+    transcript: Optional[str] = None  # Full transcript from session
+    duration_seconds: Optional[int] = None
+    analysis_completed: bool = Field(default=False)
+    analysis_data: Optional[Dict] = Field(default=None, sa_column=Column(postgresql.JSONB))
+    created_at: Optional[datetime] = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+
+
+# Pydantic models for agent outputs
+class WellnessRecommendation(BaseModel):
+    title: str
+    description: str
+    category: str
+
+
+class WellnessExercise(BaseModel):
+    name: str
+    instructions: str
+    duration: str
+    best_for: Optional[str] = None
+
+
+class WellnessResource(BaseModel):
+    type: str
+    title: str
+    description: str
+
+
+class WellnessPathwayData(BaseModel):
+    """Wellness pathway suggested by agent"""
+    pathway_name: str
+    pathway_type: str
+    description: str
+    duration_days: int = 7
+
+
+class RecommendedTaskOutput(BaseModel):
+    """Task output from agent"""
+    task_title: str
+    task_description: str
+    priority_classification: str  # urgent_important, important_not_urgent, etc.
+    suggested_due_days: int = 7  # Days from now
+
+
+class TranscriptSummary(BaseModel):
+    """Summary to display under transcript"""
+    summary: str
+    emotions: list[str]
+    focus_areas: list[str]
+    tags: list[str]
+    stress_level: Optional[str] = None  # For study mode
+    academic_concerns: Optional[list[str]] = None  # For study mode only
+
+
+class StatsRecommendations(BaseModel):
+    """Recommendations to show in stats/analysis area"""
+    recommendations: list[WellnessRecommendation]
+    wellness_exercises: list[WellnessExercise]
+    resources: list[WellnessResource]
+    wellness_pathways: list[WellnessPathwayData]  # NEW: Pathways user can register for
+    recommended_tasks: list[RecommendedTaskOutput]  # Tasks for Eisenhower matrix
+    tone: str
+    study_focus_tips: Optional[list[str]] = None  # Study mode only
+
+
+class VoiceJournalAnalysisResult(BaseModel):
+    """Complete analysis result from wellness agents"""
+    session_id: str
+    mode: WellnessMode
+    transcript_summary: TranscriptSummary  # Shows under transcript
+    stats_recommendations: StatsRecommendations  # Shows in stats area
+    safety_approved: bool
+    safety_score: Optional[float] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TriggerAnalysisInput(BaseModel):
+    """Input to trigger wellness analysis"""
+    transcript: str
+    mode: WellnessMode  # study or general
+    user_id: str
+
+
+class RegisterPathwayInput(BaseModel):
+    """Register user for a wellness pathway"""
+    pathway_name: str
+    pathway_type: str
+    description: str
+    duration_days: int = 7
+
+
+class AddAgentTaskInput(BaseModel):
+    """Add task from agent recommendations to matrix"""
+    task_title: str
+    task_description: str
+    quadrant: Quadrant
+    due_days_from_now: int = 7
+
+
+
+
 # Pydantic models for Reddit API
 class CountryCreate(BaseModel):
     iso_code: str
@@ -1006,3 +1203,10 @@ class VoteRequest(BaseModel):
 class ReportRequest(BaseModel):
     reason: str
     description: Optional[str] = None
+
+
+class VoiceJournalSessionInput(BaseModel):
+    """Input for creating a voice journal session"""
+    mode: WellnessMode
+    transcript: str
+    duration_seconds: Optional[int] = None
