@@ -18,9 +18,9 @@ def seed_chat_firebase():
     db = get_firestore()
     print("🌱 Starting Firebase chat data seeding...")
     
-    # Get existing users to add as members
+    # Get existing users to add as members (get all users, not just 10)
     users_ref = db.collection('users')
-    users_query = users_ref.limit(10).stream()
+    users_query = users_ref.stream()  # Removed .limit(10) to get ALL users
     users = list(users_query)
     
     if not users:
@@ -126,7 +126,16 @@ def seed_chat_firebase():
         # Create server memberships for each user
         if user_ids:
             memberships_ref = db.collection('serverMemberships')
+            membership_count = 0
             for user_id in user_ids:
+                # Check if membership already exists
+                existing_membership = memberships_ref.where('server_id', '==', server_id)\
+                                                     .where('user_id', '==', user_id)\
+                                                     .limit(1)\
+                                                     .stream()
+                if list(existing_membership):
+                    continue  # Skip if already exists
+                
                 membership_id = str(uuid.uuid4())
                 role = "admin" if user_id == creator_id else "member"
                 
@@ -137,8 +146,12 @@ def seed_chat_firebase():
                     "joined_at": SERVER_TIMESTAMP,
                 }
                 memberships_ref.document(membership_id).set(membership_doc)
+                membership_count += 1
             
-            print(f"   👥 Added {len(user_ids)} members to server")
+            if membership_count > 0:
+                print(f"   👥 Added {membership_count} new members to server")
+            else:
+                print(f"   👥 All {len(user_ids)} members already in server")
     
     print("\n✨ Firebase chat data seeding completed successfully!")
     print(f"📊 Summary:")

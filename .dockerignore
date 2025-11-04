@@ -14,10 +14,12 @@ build
 .git
 .gitignore
 
-# Environment files (but NOT .env.production)
-.env
+# Environment files (but NOT .env.production - needed for Cloud Run)
 .env.local
 .env.development
+.env.test
+# IMPORTANT: .env.production is NOT excluded - it's needed for deployment!
+# .env is also NOT excluded - used as fallback
 .venv
 venv
 
@@ -60,4 +62,8 @@ seed_chat_data.py
 # !voice-agent-stt-key.json (included by default)
 # !seed_chat_firebase.py (included by default)
 # !seed_reddit_countries.py (included by default)
+
+# Explicitly include .env files for Cloud Run deployment
+!.env
+!.env.production
 

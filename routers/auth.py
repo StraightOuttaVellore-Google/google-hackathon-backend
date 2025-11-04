@@ -14,6 +14,7 @@ from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 import uuid
 
 from firebase_db import get_firestore
+from utils import add_user_to_default_servers
 
 router = APIRouter(tags=["Authentication"])
 
@@ -104,6 +105,13 @@ def create_new_account(login_data: SignupData):
         }
         
         users_ref.document(user_id).set(user_data)
+        
+        # Automatically add new user to default servers
+        try:
+            add_user_to_default_servers(user_id)
+        except Exception as e:
+            # Don't fail signup if server addition fails
+            print(f"⚠️ Warning: Could not add user to default servers: {e}")
         
         return {
             "message": "User created successfully",

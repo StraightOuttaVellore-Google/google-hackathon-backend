@@ -1,102 +1,122 @@
-from fastapi import APIRouter, Response, status
-from sqlmodel import select
-from db import SessionDep
-from model import MoodboardData, MoodboardDataInput
-from utils import TokenDep
+"""
+Moodboard Router - Firebase Version
 
+Handles moodboard data using Firestore for real-time sync.
+"""
+
+from fastapi import APIRouter, HTTPException, status
+from google.cloud.firestore_v1 import SERVER_TIMESTAMP
+
+from firebase_db import get_firestore
+from model import MoodboardDataInput
+from utils import TokenDep
 
 router = APIRouter(tags=["Moodboard"])
 
 
 @router.get("/moodboard")
-async def get_moodboard_data(token_data: TokenDep, session: SessionDep):
+async def get_moodboard_data(token_data: TokenDep):
     """Get moodboard data for the current user"""
     try:
-        moodboard = session.exec(
-            select(MoodboardData).where(MoodboardData.user_id == token_data.user_id)
-        ).first()
-
-        if not moodboard:
+        db = get_firestore()
+        user_id = str(token_data.user_id)
+        
+        # Query for user's moodboard
+        moodboards_ref = db.collection('moodboards')
+        query = moodboards_ref.where('user_id', '==', user_id).limit(1)
+        
+        docs = list(query.stream())
+        
+        if not docs:
             # Return default data if none exists
             return {"study_mode": True, "data": {}}
-
+        
+        data = docs[0].to_dict()
         return {
-            "id": str(moodboard.id),
-            "study_mode": moodboard.study_mode,
-            "data": moodboard.data or {},
+            "id": docs[0].id,
+            "study_mode": data.get('study_mode', True),
+            "data": data.get('data') or {},
         }
     except Exception as e:
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Error retrieving moodboard data: {str(e)}"
         )
 
 
 @router.post("/moodboard", status_code=status.HTTP_201_CREATED)
-async def create_moodboard_data(
-    data: MoodboardDataInput, token_data: TokenDep, session: SessionDep
-):
+async def create_moodboard_data(data: MoodboardDataInput, token_data: TokenDep):
     """Create or update moodboard data for the current user"""
     try:
-        # Check if moodboard data already exists
-        existing = session.exec(
-            select(MoodboardData).where(MoodboardData.user_id == token_data.user_id)
-        ).first()
-
-        if existing:
+        db = get_firestore()
+        user_id = str(token_data.user_id)
+        
+        # Check if moodboard already exists
+        moodboards_ref = db.collection('moodboards')
+        query = moodboards_ref.where('user_id', '==', user_id).limit(1)
+        
+        existing_docs = list(query.stream())
+        
+        moodboard_data = {
+            "user_id": user_id,
+            "study_mode": data.study_mode,
+            "data": data.data or {},
+            "updated_at": SERVER_TIMESTAMP,
+        }
+        
+        if existing_docs:
             # Update existing data
-            existing.study_mode = data.study_mode
-            if data.data is not None:
-                existing.data = data.data
-
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-            return Response(status_code=status.HTTP_200_OK)
-
-        # Create new moodboard data
-        new_moodboard = MoodboardData(
-            user_id=token_data.user_id,
-            study_mode=data.study_mode,
-            data=data.data,
-        )
-        session.add(new_moodboard)
-        session.commit()
-        return Response(status_code=status.HTTP_201_CREATED)
+            existing_docs[0].reference.update(moodboard_data)
+            return {"status": "updated", "id": existing_docs[0].id}
+        else:
+            # Create new moodboard
+            moodboard_data["created_at"] = SERVER_TIMESTAMP
+            doc_ref = moodboards_ref.document()
+            doc_ref.set(moodboard_data)
+            return {"status": "created", "id": doc_ref.id}
+            
     except Exception as e:
-        session.rollback()
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Error creating/updating moodboard: {str(e)}"
         )
 
 
 @router.patch("/moodboard")
-async def update_moodboard_data(
-    data: MoodboardDataInput, token_data: TokenDep, session: SessionDep
-):
+async def update_moodboard_data(data: MoodboardDataInput, token_data: TokenDep):
     """Update moodboard data for the current user"""
     try:
-        moodboard = session.exec(
-            select(MoodboardData).where(MoodboardData.user_id == token_data.user_id)
-        ).first()
-
-        if not moodboard:
-            return Response(
+        db = get_firestore()
+        user_id = str(token_data.user_id)
+        
+        # Find existing moodboard
+        moodboards_ref = db.collection('moodboards')
+        query = moodboards_ref.where('user_id', '==', user_id).limit(1)
+        
+        docs = list(query.stream())
+        
+        if not docs:
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                content="Moodboard data not found. Please create data first.",
+                detail="Moodboard data not found. Please create data first."
             )
-
-        moodboard.study_mode = data.study_mode
+        
+        # Update fields
+        update_data = {
+            "study_mode": data.study_mode,
+            "updated_at": SERVER_TIMESTAMP,
+        }
+        
         if data.data is not None:
-            moodboard.data = data.data
-
-        session.add(moodboard)
-        session.commit()
-        return Response(status_code=status.HTTP_200_OK)
+            update_data["data"] = data.data
+        
+        docs[0].reference.update(update_data)
+        return {"status": "updated", "id": docs[0].id}
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        session.rollback()
-        return Response(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=f"Internal Server Error:\n{e}",
+            detail=f"Error updating moodboard: {str(e)}"
         )
