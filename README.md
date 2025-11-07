@@ -287,3 +287,8 @@ This project is part of the Google Hackathon submission.
 
 **Note**: For production deployment, ensure all environment variables are set via Google Cloud Secret Manager. Never commit `.env` files or service account keys to the repository.
 
+
+
+
+
+
